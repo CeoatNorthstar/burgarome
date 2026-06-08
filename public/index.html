@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Burgarome Random Video Chat</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1>Burgarome</h1>
+      <p class="subtitle">Talk and meet random people online, Omegle style.</p>
+
+      <p id="status" class="status">Connecting…</p>
+
+      <section class="videos">
+        <figure>
+          <figcaption>You</figcaption>
+          <video id="localVideo" autoplay muted playsinline></video>
+        </figure>
+        <figure>
+          <figcaption>Stranger</figcaption>
+          <video id="remoteVideo" autoplay playsinline></video>
+        </figure>
+      </section>
+
+      <section class="controls">
+        <button id="nextButton" type="button">Next Stranger</button>
+      </section>
+
+      <section class="chat">
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <form id="chatForm">
+          <label for="chatInput" class="sr-only">Message</label>
+          <input id="chatInput" name="message" type="text" maxlength="300" placeholder="Type a message" autocomplete="off" />
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>

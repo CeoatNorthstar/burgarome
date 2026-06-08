@@ -1,0 +1,119 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #13151a;
+  color: #f1f5f9;
+}
+
+.app {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.subtitle {
+  margin-top: -0.5rem;
+  color: #94a3b8;
+}
+
+.status {
+  display: inline-block;
+  margin: 0.5rem 0 1rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: #1e293b;
+}
+
+.videos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+figure {
+  margin: 0;
+}
+
+figcaption {
+  margin-bottom: 0.5rem;
+  color: #94a3b8;
+}
+
+video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #020617;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.controls {
+  margin: 1rem 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.chat {
+  border-top: 1px solid #334155;
+  padding-top: 1rem;
+}
+
+.messages {
+  height: 220px;
+  overflow-y: auto;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.6rem;
+  background: #020617;
+  margin-bottom: 0.8rem;
+}
+
+.messages p {
+  margin: 0.25rem 0;
+}
+
+#chatForm {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+#chatInput {
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 0.5rem;
+  background: #0f172a;
+  color: inherit;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
