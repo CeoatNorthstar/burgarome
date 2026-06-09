@@ -1,6 +1,8 @@
 const statusElement = document.getElementById('status');
+const statusText = statusElement.querySelector('.status-text');
 const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
+const remotePlaceholder = document.getElementById('remotePlaceholder');
 const nextButton = document.getElementById('nextButton');
 const messages = document.getElementById('messages');
 const chatForm = document.getElementById('chatForm');
@@ -52,14 +54,48 @@ let connectedToPeer = false;
 let pendingCandidates = [];
 
 function setStatus(text) {
-  statusElement.textContent = text;
+  const lower = text.toLowerCase();
+  let variant = 'connecting';
+  if (lower.includes('active') || lower.includes('connected to a stranger')) {
+    variant = 'active';
+  } else if (
+    lower.includes('failed') ||
+    lower.includes('error') ||
+    lower.includes('permission') ||
+    lower.includes('limit') ||
+    lower.includes('lost') ||
+    lower.includes('full')
+  ) {
+    variant = 'error';
+  }
+  statusElement.className = `status status--${variant}`;
+  statusText.textContent = text;
+}
+
+function escapeHtml(text) {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
 }
 
 function addMessage(text, sender = 'system') {
   const paragraph = document.createElement('p');
-  paragraph.textContent = `${sender === 'self' ? 'You' : sender === 'peer' ? 'Stranger' : 'System'}: ${text}`;
+  paragraph.className = `msg msg--${sender === 'self' ? 'self' : sender === 'peer' ? 'peer' : 'system'}`;
+  if (sender === 'system') {
+    paragraph.textContent = text;
+  } else {
+    const label = sender === 'self' ? 'You' : 'Stranger';
+    paragraph.innerHTML = `<strong>${label}</strong> ${escapeHtml(text)}`;
+  }
   messages.appendChild(paragraph);
   messages.scrollTop = messages.scrollHeight;
+}
+
+function showRemotePlaceholder(show) {
+  if (remotePlaceholder) {
+    remotePlaceholder.classList.toggle('is-hidden', !show);
+  }
 }
 
 function send(payload) {
@@ -109,6 +145,7 @@ function attachRemoteTrack(event) {
   if (remoteVideo.srcObject !== remoteStream) {
     remoteVideo.srcObject = remoteStream;
   }
+  showRemotePlaceholder(false);
 
   void remoteVideo.play().catch(() => {
     remoteVideo.muted = true;
@@ -265,6 +302,7 @@ function disconnectPeer(notify = false) {
   connectedToPeer = false;
   remoteVideo.srcObject = null;
   remoteStream = null;
+  showRemotePlaceholder(true);
 
   if (peerConnection) {
     peerConnection.close();
