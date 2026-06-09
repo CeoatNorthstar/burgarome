@@ -279,7 +279,12 @@ function disconnectPeer(notify = false) {
 async function initMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user' },
+      video: {
+        facingMode: 'user',
+        width: { ideal: 854, max: 854 },
+        height: { ideal: 480, max: 480 },
+        frameRate: { ideal: 24, max: 30 },
+      },
       audio: true,
     });
     localVideo.srcObject = localStream;
@@ -322,6 +327,26 @@ function connectSocket() {
         setStatus('Stranger disconnected. Finding a new one...');
         addMessage('Stranger disconnected.', 'system');
         send({ type: 'ready' });
+        break;
+      case 'session-ended':
+        disconnectPeer(false);
+        if (payload.reason === 'time-limit') {
+          setStatus('Call time limit reached. Finding a new stranger...');
+          addMessage('This call reached the time limit.', 'system');
+        } else {
+          setStatus('Call ended. Finding a new stranger...');
+          addMessage('Your call ended.', 'system');
+        }
+        send({ type: 'ready' });
+        break;
+      case 'capacity-full':
+        setStatus(payload.message || 'Lobby is full. Try again shortly.');
+        addMessage(payload.message || 'Lobby is full. Try again shortly.', 'system');
+        break;
+      case 'usage-limit':
+        disconnectPeer(false);
+        setStatus(payload.message || 'Usage limit reached for this month.');
+        addMessage(payload.message || 'Usage limit reached for this month.', 'system');
         break;
       default:
         break;

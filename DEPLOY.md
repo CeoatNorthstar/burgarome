@@ -37,25 +37,60 @@ curl https://burgarome-signaling.YOUR-SUBDOMAIN.workers.dev/ice
 
 ---
 
-## 2. (Optional but recommended) Add TURN so it connects on *any* network
+## 2. Add TURN (Option B: P2P + Cloudflare TURN)
 
-Direct peer-to-peer video fails on a lot of restrictive networks (corporate
-Wi-Fi, mobile carriers, strict firewalls). A TURN server relays the media so it
-connects anyway. Cloudflare provides one:
+Burgarome uses **peer-to-peer video** (no SFU). Cloudflare **TURN** relays media
+only when a direct connection fails. Video is capped at **480p** to stay within
+the free **1,000 GB/month** egress allowance.
+
+### Cloudflare TURN setup
 
 1. In the Cloudflare dashboard go to **Realtime → TURN** and create a TURN key.
-2. Note the **Turn Token ID** and the **API token**.
-3. Store them as Worker secrets:
+   (A payment method on file is usually required; the first 1,000 GB/month is
+   free, then $0.05/GB.)
+2. Store **Turn Token ID** and **API token** as Worker secrets:
 
    ```bash
-   npx wrangler secret put TURN_KEY_ID       # paste the Turn Token ID
-   npx wrangler secret put TURN_API_TOKEN    # paste the API token
-   npx wrangler deploy                       # redeploy to pick them up
+   npx wrangler secret put TURN_KEY_ID
+   npx wrangler secret put TURN_API_TOKEN
+   npx wrangler deploy
    ```
 
-Now `/ice` returns short-lived TURN credentials alongside STUN, and the browser
-uses them automatically. Without these secrets the app still works on most
-networks using STUN only.
+3. Verify:
+
+   ```bash
+   curl https://burgarome-signaling.YOUR-SUBDOMAIN.workers.dev/ice
+   ```
+
+   You should see `turn:turn.cloudflare.com` URLs with `username` and
+   `credential` fields.
+
+### Usage limits (Option B)
+
+Configured in `wrangler.toml` `[vars]`:
+
+| Limit | Value |
+| --- | --- |
+| Max concurrent users | 80 |
+| Max call length | 12 minutes |
+| Max monthly pair-minutes | 50,000 (~833 pair-hours) |
+| Max queue size | 50 |
+
+When the monthly cap is hit, new matches are blocked and `/ice` falls back to
+STUN only until next month.
+
+### Fallback: Metered Open Relay (no credit card)
+
+If Cloudflare TURN is not configured, you can use Metered’s free tier (20
+GB/month) instead:
+
+```bash
+npx wrangler secret put METERED_TURN_API_KEY
+npx wrangler deploy
+```
+
+Cloudflare TURN takes priority when both are set. Without any TURN secrets the
+app still works on simple networks using STUN only.
 
 ---
 

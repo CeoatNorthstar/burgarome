@@ -12,7 +12,19 @@ class_name = "Lobby"
 tag = "v1"
 new_sqlite_classes = ["Lobby"]
 
-# Optional Cloudflare TURN credentials are provided as secrets, not here:
-#   npx wrangler secret put TURN_KEY_ID
-#   npx wrangler secret put TURN_API_TOKEN
-# Without them the server falls back to public STUN only.
+# Option B: P2P video + Cloudflare TURN (1,000 GB/month shared free tier, CC on file).
+#   1. Cloudflare Dashboard → Realtime → TURN → Create key
+#   2. npx wrangler secret put TURN_KEY_ID
+#   3. npx wrangler secret put TURN_API_TOKEN
+#
+# Fallback TURN (no CC): Metered Open Relay — 20 GB/month
+#   npx wrangler secret put METERED_TURN_API_KEY
+#
+# Without TURN secrets the server falls back to public STUN only.
+#
+# Usage limits tuned for Option B (P2P + Cloudflare TURN, ~1 TB/month budget).
+[vars]
+MAX_CONCURRENT_USERS = "80"
+MAX_CALL_MINUTES = "12"
+MAX_MONTHLY_CONNECTION_MINUTES = "50000"
+MAX_QUEUE_SIZE = "50"
