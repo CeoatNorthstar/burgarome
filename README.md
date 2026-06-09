@@ -21,3 +21,10 @@ Then open `http://localhost:3000` in two separate browser windows/tabs (or on tw
 ```bash
 npm test
 ```
+
+## Deploy (use it anywhere)
+
+The frontend (`public/`) goes on **GitHub Pages** and the WebSocket signaling
+server (`worker/`) goes on **Cloudflare Workers**, with optional TURN so the
+video connects even on restrictive networks. Full step-by-step in
+[DEPLOY.md](DEPLOY.md).

@@ -85,6 +85,14 @@ function requeueDisconnectedPartner(socket, messageType) {
 
 const server = http.createServer((req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+
+  // Mirrors the Cloudflare Worker's /ice endpoint for local development.
+  if (requestUrl.pathname === '/ice') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }));
+    return;
+  }
+
   const pathname = requestUrl.pathname === '/' ? '/index.html' : requestUrl.pathname;
   const relativePath = path.normalize(pathname).replace(/^\/+/, '');
   const fullPath = path.resolve(PUBLIC_DIR, relativePath);

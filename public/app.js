@@ -6,9 +6,35 @@ const messages = document.getElementById('messages');
 const chatForm = document.getElementById('chatForm');
 const chatInput = document.getElementById('chatInput');
 
-const rtcConfig = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-};
+// Backend base URL (set in config.js). Empty means same-origin (local dev).
+const BACKEND = (window.BURGAROME_BACKEND || '').replace(/\/+$/, '');
+
+// ICE servers are fetched from the backend at startup so we can use fresh TURN
+// credentials. This is the fallback if that request fails.
+const FALLBACK_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+let rtcConfig = { iceServers: FALLBACK_ICE_SERVERS };
+
+function backendWsUrl() {
+  if (BACKEND) {
+    return `${BACKEND.replace(/^http/, 'ws')}/ws`;
+  }
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${location.host}/ws`;
+}
+
+async function loadIceServers() {
+  try {
+    const response = await fetch(`${BACKEND}/ice`, { cache: 'no-store' });
+    if (response.ok) {
+      const data = await response.json();
+      if (Array.isArray(data.iceServers) && data.iceServers.length > 0) {
+        rtcConfig = { iceServers: data.iceServers };
+      }
+    }
+  } catch {
+    // Keep the STUN-only fallback.
+  }
+}
 
 let socket;
 let localStream;
@@ -128,8 +154,7 @@ async function initMedia() {
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  socket = new WebSocket(`${protocol}//${location.host}/ws`);
+  socket = new WebSocket(backendWsUrl());
 
   socket.addEventListener('open', () => {
     setStatus('Looking for a stranger...');
@@ -186,5 +211,6 @@ chatForm.addEventListener('submit', (event) => {
 
 (async () => {
   await initMedia();
+  await loadIceServers();
   connectSocket();
 })();

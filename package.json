@@ -21,5 +21,8 @@
   "homepage": "https://github.com/CeoatNorthstar/burgarome#readme",
   "dependencies": {
     "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.98.0"
   }
 }

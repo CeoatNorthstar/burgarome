@@ -1,0 +1,18 @@
+name = "burgarome-signaling"
+main = "worker/index.js"
+compatibility_date = "2025-01-01"
+
+# Shared matchmaking lobby. SQLite-backed Durable Objects are available on the
+# free Workers plan.
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Lobby"]
+
+# Optional Cloudflare TURN credentials are provided as secrets, not here:
+#   npx wrangler secret put TURN_KEY_ID
+#   npx wrangler secret put TURN_API_TOKEN
+# Without them the server falls back to public STUN only.
