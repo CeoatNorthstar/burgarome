@@ -33,7 +33,21 @@ function json(data, status = 200) {
   );
 }
 
-const DEFAULT_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+const DEFAULT_ICE_SERVERS = [
+  { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
+];
+
+// Cloudflare's alternate STUN/TURN port 53 often times out in browsers.
+function filterBrowserIceServers(iceServers) {
+  return iceServers.map((server) => {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    const filtered = urls.filter((url) => !String(url).includes(':53'));
+    if (filtered.length === 0) {
+      return server;
+    }
+    return { ...server, urls: filtered.length === 1 ? filtered[0] : filtered };
+  });
+}
 
 // Asks Cloudflare's Realtime TURN API for ephemeral credentials. Returns null
 // (so we fall back to plain STUN) unless TURN_KEY_ID + TURN_API_TOKEN are set.
@@ -44,7 +58,7 @@ async function generateTurnServers(env) {
 
   try {
     const response = await fetch(
-      `https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate`,
+      `https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`,
       {
         method: 'POST',
         headers: {
@@ -60,20 +74,17 @@ async function generateTurnServers(env) {
     }
 
     const data = await response.json();
-    // The API returns { iceServers: { urls, username, credential } }.
-    const servers = data.iceServers;
-    if (!servers) {
+    if (!Array.isArray(data.iceServers) || data.iceServers.length === 0) {
       return null;
     }
-    return Array.isArray(servers) ? servers : [servers];
+    return filterBrowserIceServers(data.iceServers);
   } catch {
     return null;
   }
 }
 
 async function iceResponse(env) {
-  const turn = await generateTurnServers(env);
-  const iceServers = turn ? [...DEFAULT_ICE_SERVERS, ...turn] : DEFAULT_ICE_SERVERS;
+  const iceServers = (await generateTurnServers(env)) ?? DEFAULT_ICE_SERVERS;
   return json({ iceServers });
 }
 

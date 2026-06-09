@@ -89,7 +89,11 @@ const server = http.createServer((req, res) => {
   // Mirrors the Cloudflare Worker's /ice endpoint for local development.
   if (requestUrl.pathname === '/ice') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }));
+    res.end(
+      JSON.stringify({
+        iceServers: [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }],
+      }),
+    );
     return;
   }
 

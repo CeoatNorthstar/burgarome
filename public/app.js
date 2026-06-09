@@ -11,8 +11,10 @@ const BACKEND = (window.BURGAROME_BACKEND || '').replace(/\/+$/, '');
 
 // ICE servers are fetched from the backend at startup so we can use fresh TURN
 // credentials. This is the fallback if that request fails.
-const FALLBACK_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
-let rtcConfig = { iceServers: FALLBACK_ICE_SERVERS };
+const FALLBACK_ICE_SERVERS = [
+  { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
+];
+let rtcConfig = { iceServers: FALLBACK_ICE_SERVERS, bundlePolicy: 'max-bundle' };
 
 function backendWsUrl() {
   if (BACKEND) {
@@ -59,6 +61,23 @@ function send(payload) {
   }
 }
 
+function attachRemoteTrack(event) {
+  const [stream] = event.streams;
+  if (stream) {
+    remoteVideo.srcObject = stream;
+  } else {
+    let remoteStream = remoteVideo.srcObject;
+    if (!(remoteStream instanceof MediaStream)) {
+      remoteStream = new MediaStream();
+      remoteVideo.srcObject = remoteStream;
+    }
+    if (!remoteStream.getTracks().includes(event.track)) {
+      remoteStream.addTrack(event.track);
+    }
+  }
+  void remoteVideo.play();
+}
+
 function resetPeerConnection() {
   if (peerConnection) {
     peerConnection.ontrack = null;
@@ -73,8 +92,16 @@ function resetPeerConnection() {
     peerConnection.addTrack(track, localStream);
   });
 
-  peerConnection.ontrack = (event) => {
-    remoteVideo.srcObject = event.streams[0];
+  peerConnection.ontrack = attachRemoteTrack;
+
+  peerConnection.onconnectionstatechange = () => {
+    if (!peerConnection) {
+      return;
+    }
+    if (peerConnection.connectionState === 'failed') {
+      setStatus('Video connection failed. Try Next Stranger.');
+      addMessage('Could not establish a video link. Skipping may help.', 'system');
+    }
   };
 
   peerConnection.onicecandidate = (event) => {
@@ -100,31 +127,48 @@ async function handleMatch(initiator) {
   send({ type: 'signal', description: peerConnection.localDescription });
 }
 
+async function addIceCandidateSafe(candidate) {
+  if (!candidate || !candidate.candidate) {
+    return;
+  }
+  try {
+    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+  } catch {
+    // Ignore stale/duplicate candidates after reconnects.
+  }
+}
+
 async function handleSignal(payload) {
   if (!connectedToPeer || !peerConnection) {
     return;
   }
 
-  if (payload.description) {
-    const remoteDescription = new RTCSessionDescription(payload.description);
-    await peerConnection.setRemoteDescription(remoteDescription);
-    while (pendingCandidates.length > 0) {
-      await peerConnection.addIceCandidate(pendingCandidates.shift());
+  try {
+    if (payload.description) {
+      const remoteDescription = new RTCSessionDescription(payload.description);
+      await peerConnection.setRemoteDescription(remoteDescription);
+      while (pendingCandidates.length > 0) {
+        await addIceCandidateSafe(pendingCandidates.shift());
+      }
+
+      if (payload.description.type === 'offer') {
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        send({ type: 'signal', description: peerConnection.localDescription });
+      }
     }
 
-    if (payload.description.type === 'offer') {
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      send({ type: 'signal', description: peerConnection.localDescription });
+    if (payload.candidate) {
+      if (!peerConnection.remoteDescription) {
+        pendingCandidates.push(payload.candidate);
+        return;
+      }
+      await addIceCandidateSafe(payload.candidate);
     }
-  }
-
-  if (payload.candidate) {
-    if (!peerConnection.remoteDescription) {
-      pendingCandidates.push(payload.candidate);
-      return;
-    }
-    await peerConnection.addIceCandidate(payload.candidate);
+  } catch (error) {
+    setStatus('Signaling error. Try Next Stranger.');
+    addMessage('Video negotiation failed. Please try again.', 'system');
+    console.error(error);
   }
 }
 
@@ -162,7 +206,12 @@ function connectSocket() {
   });
 
   socket.addEventListener('message', async (event) => {
-    const payload = JSON.parse(event.data);
+    let payload;
+    try {
+      payload = JSON.parse(event.data);
+    } catch {
+      return;
+    }
 
     switch (payload.type) {
       case 'matched':
