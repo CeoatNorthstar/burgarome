@@ -86,7 +86,8 @@ function addMessage(text, sender = 'system') {
     paragraph.textContent = text;
   } else {
     const label = sender === 'self' ? 'You' : 'Stranger';
-    paragraph.innerHTML = `<strong>${label}</strong> ${escapeHtml(text)}`;
+    paragraph.innerHTML =
+      `<span class="msg__label">${label}</span>${escapeHtml(text)}`;
   }
   messages.appendChild(paragraph);
   messages.scrollTop = messages.scrollHeight;

@@ -3,84 +3,82 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Burgarome — Random Video Chat</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📹</text></svg>" />
+    <title>Burgarome</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='white'>B</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="bg-glow" aria-hidden="true"></div>
-
-    <main class="app">
-      <header class="hero">
-        <div class="brand">
-          <span class="brand-mark" aria-hidden="true">B</span>
+    <main class="shell">
+      <header class="topbar">
+        <div class="topbar__brand">
+          <span class="topbar__logo" aria-hidden="true">B</span>
           <div>
-            <h1>Burgarome</h1>
-            <p class="subtitle">Meet strangers on live video — Omegle style, rebuilt for today.</p>
+            <p class="topbar__title">Burgarome</p>
+            <p class="topbar__tagline">Random video chat</p>
           </div>
         </div>
         <div id="status" class="status status--connecting" role="status">
-          <span class="status-dot" aria-hidden="true"></span>
-          <span class="status-text">Connecting…</span>
+          <span class="status__dot" aria-hidden="true"></span>
+          <span class="status-text">Connecting</span>
         </div>
       </header>
 
-      <section class="stage">
-        <article class="video-card video-card--remote">
-          <div class="video-frame">
-            <video id="remoteVideo" autoplay playsinline></video>
-            <div class="video-placeholder" id="remotePlaceholder">
-              <span class="placeholder-icon" aria-hidden="true">?</span>
-              <p>Waiting for a stranger</p>
+      <section class="layout">
+        <div class="video-stack">
+          <article class="panel panel--main">
+            <div class="panel__head">
+              <span class="panel__label">Stranger</span>
             </div>
-          </div>
-          <div class="video-label">
-            <span class="label-badge label-badge--stranger">Stranger</span>
-          </div>
-        </article>
+            <div class="panel__body">
+              <video id="remoteVideo" autoplay playsinline></video>
+              <div class="panel__empty" id="remotePlaceholder">
+                <p class="panel__empty-title">No stranger yet</p>
+                <p class="panel__empty-copy">You’ll be matched automatically</p>
+              </div>
+            </div>
+          </article>
 
-        <article class="video-card video-card--local">
-          <div class="video-frame">
-            <video id="localVideo" autoplay muted playsinline></video>
-          </div>
-          <div class="video-label">
-            <span class="label-badge label-badge--you">You</span>
-          </div>
-        </article>
-      </section>
-
-      <section class="controls">
-        <button id="nextButton" class="btn btn--primary" type="button">
-          <span class="btn-icon" aria-hidden="true">↻</span>
-          Next stranger
-        </button>
-      </section>
-
-      <section class="chat-panel">
-        <div class="chat-header">
-          <h2>Text chat</h2>
-          <span class="chat-hint">Optional — say hi while you wait</span>
+          <article class="panel panel--pip">
+            <div class="panel__head">
+              <span class="panel__label">You</span>
+            </div>
+            <div class="panel__body">
+              <video id="localVideo" autoplay muted playsinline></video>
+            </div>
+          </article>
         </div>
-        <div id="messages" class="messages" aria-live="polite"></div>
-        <form id="chatForm" class="chat-form">
-          <label for="chatInput" class="sr-only">Message</label>
-          <input
-            id="chatInput"
-            name="message"
-            type="text"
-            maxlength="300"
-            placeholder="Type a message…"
-            autocomplete="off"
-          />
-          <button class="btn btn--send" type="submit">Send</button>
-        </form>
+
+        <aside class="sidebar">
+          <div class="sidebar__actions">
+            <button id="nextButton" class="button button--primary" type="button">Next stranger</button>
+          </div>
+
+          <section class="chat">
+            <div class="chat__head">
+              <h2>Messages</h2>
+            </div>
+            <div id="messages" class="chat__feed" aria-live="polite"></div>
+            <form id="chatForm" class="chat__composer">
+              <label for="chatInput" class="sr-only">Message</label>
+              <input
+                id="chatInput"
+                name="message"
+                type="text"
+                maxlength="300"
+                placeholder="Message"
+                autocomplete="off"
+              />
+              <button class="button button--ghost" type="submit" aria-label="Send message">↑</button>
+            </form>
+          </section>
+        </aside>
       </section>
     </main>
 
-    <script src="config.js?v=4" defer></script>
-    <script src="app.js?v=4" defer></script>
+    <script src="config.js?v=5" defer></script>
+    <script src="app.js?v=5" defer></script>
   </body>
 </html>
