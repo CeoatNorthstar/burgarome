@@ -9,12 +9,16 @@ const chatInput = document.getElementById('chatInput');
 // Backend base URL (set in config.js). Empty means same-origin (local dev).
 const BACKEND = (window.BURGAROME_BACKEND || '').replace(/\/+$/, '');
 
-// ICE servers are fetched from the backend at startup so we can use fresh TURN
-// credentials. This is the fallback if that request fails.
 const FALLBACK_ICE_SERVERS = [
   { urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] },
 ];
-let rtcConfig = { iceServers: FALLBACK_ICE_SERVERS, bundlePolicy: 'max-bundle' };
+
+const RTC_BASE_CONFIG = {
+  bundlePolicy: 'max-bundle',
+  iceCandidatePoolSize: 10,
+};
+
+let rtcConfig = { ...RTC_BASE_CONFIG, iceServers: FALLBACK_ICE_SERVERS };
 
 function backendWsUrl() {
   if (BACKEND) {
@@ -24,22 +28,25 @@ function backendWsUrl() {
   return `${protocol}//${location.host}/ws`;
 }
 
-async function loadIceServers() {
+async function refreshRtcConfig() {
   try {
     const response = await fetch(`${BACKEND}/ice`, { cache: 'no-store' });
     if (response.ok) {
       const data = await response.json();
       if (Array.isArray(data.iceServers) && data.iceServers.length > 0) {
-        rtcConfig = { iceServers: data.iceServers };
+        rtcConfig = { ...RTC_BASE_CONFIG, iceServers: data.iceServers };
+        return;
       }
     }
   } catch {
-    // Keep the STUN-only fallback.
+    // Keep the current config.
   }
+  rtcConfig = { ...RTC_BASE_CONFIG, iceServers: FALLBACK_ICE_SERVERS };
 }
 
 let socket;
 let localStream;
+let remoteStream;
 let peerConnection;
 let connectedToPeer = false;
 let pendingCandidates = [];
@@ -61,59 +68,134 @@ function send(payload) {
   }
 }
 
-function attachRemoteTrack(event) {
-  const [stream] = event.streams;
-  if (stream) {
-    remoteVideo.srcObject = stream;
-  } else {
-    let remoteStream = remoteVideo.srcObject;
-    if (!(remoteStream instanceof MediaStream)) {
-      remoteStream = new MediaStream();
-      remoteVideo.srcObject = remoteStream;
-    }
-    if (!remoteStream.getTracks().includes(event.track)) {
-      remoteStream.addTrack(event.track);
-    }
+function serializeDescription(sessionDescription) {
+  return {
+    type: sessionDescription.type,
+    sdp: sessionDescription.sdp,
+  };
+}
+
+function serializeCandidate(candidate) {
+  if (!candidate) {
+    return null;
   }
-  void remoteVideo.play();
+  return typeof candidate.toJSON === 'function' ? candidate.toJSON() : candidate;
+}
+
+function waitForIceGathering(pc, timeoutMs = 8000) {
+  if (pc.iceGatheringState === 'complete') {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const timeout = setTimeout(resolve, timeoutMs);
+    const onChange = () => {
+      if (pc.iceGatheringState === 'complete') {
+        clearTimeout(timeout);
+        pc.removeEventListener('icegatheringstatechange', onChange);
+        resolve();
+      }
+    };
+    pc.addEventListener('icegatheringstatechange', onChange);
+  });
+}
+
+function attachRemoteTrack(event) {
+  const track = event.track;
+  if (!remoteStream.getTracks().includes(track)) {
+    remoteStream.addTrack(track);
+  }
+
+  if (remoteVideo.srcObject !== remoteStream) {
+    remoteVideo.srcObject = remoteStream;
+  }
+
+  void remoteVideo.play().catch(() => {
+    remoteVideo.muted = true;
+    void remoteVideo.play().finally(() => {
+      remoteVideo.muted = false;
+    });
+  });
+}
+
+function addLocalTracks(pc) {
+  const kinds = new Set(localStream.getTracks().map((track) => track.kind));
+
+  localStream.getTracks().forEach((track) => {
+    pc.addTransceiver(track, { direction: 'sendrecv', streams: [localStream] });
+  });
+
+  if (!kinds.has('video')) {
+    pc.addTransceiver('video', { direction: 'recvonly' });
+  }
+  if (!kinds.has('audio')) {
+    pc.addTransceiver('audio', { direction: 'recvonly' });
+  }
 }
 
 function resetPeerConnection() {
   if (peerConnection) {
     peerConnection.ontrack = null;
     peerConnection.onicecandidate = null;
+    peerConnection.onconnectionstatechange = null;
+    peerConnection.oniceconnectionstatechange = null;
     peerConnection.close();
   }
 
+  remoteStream = new MediaStream();
   peerConnection = new RTCPeerConnection(rtcConfig);
   pendingCandidates = [];
 
-  localStream.getTracks().forEach((track) => {
-    peerConnection.addTrack(track, localStream);
-  });
+  addLocalTracks(peerConnection);
 
   peerConnection.ontrack = attachRemoteTrack;
+
+  peerConnection.onicecandidate = (event) => {
+    if (!event.candidate) {
+      return;
+    }
+    send({ type: 'signal', candidate: serializeCandidate(event.candidate) });
+  };
 
   peerConnection.onconnectionstatechange = () => {
     if (!peerConnection) {
       return;
     }
-    if (peerConnection.connectionState === 'failed') {
+    const state = peerConnection.connectionState;
+    if (state === 'connected') {
+      setStatus('Connected to a stranger');
+    } else if (state === 'failed') {
       setStatus('Video connection failed. Try Next Stranger.');
       addMessage('Could not establish a video link. Skipping may help.', 'system');
     }
   };
 
-  peerConnection.onicecandidate = (event) => {
-    if (event.candidate) {
-      send({ type: 'signal', candidate: event.candidate });
+  peerConnection.oniceconnectionstatechange = () => {
+    if (!peerConnection) {
+      return;
+    }
+    const state = peerConnection.iceConnectionState;
+    if (state === 'connected' || state === 'completed') {
+      setStatus('Video chat active');
+    } else if (state === 'failed') {
+      setStatus('Network blocked video. Try Next Stranger.');
+      addMessage('Peer network could not connect. TURN may be required on strict networks.', 'system');
     }
   };
 }
 
+async function sendLocalDescription() {
+  await waitForIceGathering(peerConnection);
+  send({
+    type: 'signal',
+    description: serializeDescription(peerConnection.localDescription),
+  });
+}
+
 async function handleMatch(initiator) {
+  await refreshRtcConfig();
   connectedToPeer = true;
-  setStatus('Connected to a stranger');
+  setStatus('Matched. Starting video…');
   addMessage('You are now connected.', 'system');
 
   resetPeerConnection();
@@ -122,9 +204,21 @@ async function handleMatch(initiator) {
     return;
   }
 
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-  send({ type: 'signal', description: peerConnection.localDescription });
+  try {
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    await sendLocalDescription();
+  } catch (error) {
+    setStatus('Could not start video. Try Next Stranger.');
+    addMessage('Failed to create a video offer.', 'system');
+    console.error(error);
+  }
+}
+
+async function flushPendingCandidates() {
+  while (pendingCandidates.length > 0) {
+    await addIceCandidateSafe(pendingCandidates.shift());
+  }
 }
 
 async function addIceCandidateSafe(candidate) {
@@ -145,20 +239,15 @@ async function handleSignal(payload) {
 
   try {
     if (payload.description) {
-      const remoteDescription = new RTCSessionDescription(payload.description);
-      await peerConnection.setRemoteDescription(remoteDescription);
-      while (pendingCandidates.length > 0) {
-        await addIceCandidateSafe(pendingCandidates.shift());
-      }
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.description));
+      await flushPendingCandidates();
 
       if (payload.description.type === 'offer') {
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-        send({ type: 'signal', description: peerConnection.localDescription });
+        await sendLocalDescription();
       }
-    }
-
-    if (payload.candidate) {
+    } else if (payload.candidate) {
       if (!peerConnection.remoteDescription) {
         pendingCandidates.push(payload.candidate);
         return;
@@ -175,6 +264,7 @@ async function handleSignal(payload) {
 function disconnectPeer(notify = false) {
   connectedToPeer = false;
   remoteVideo.srcObject = null;
+  remoteStream = null;
 
   if (peerConnection) {
     peerConnection.close();
@@ -188,8 +278,12 @@ function disconnectPeer(notify = false) {
 
 async function initMedia() {
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: true,
+    });
     localVideo.srcObject = localStream;
+    await localVideo.play();
   } catch (error) {
     setStatus('Camera/mic permission is required.');
     addMessage('Please allow camera and microphone access to continue.', 'system');
@@ -260,6 +354,6 @@ chatForm.addEventListener('submit', (event) => {
 
 (async () => {
   await initMedia();
-  await loadIceServers();
+  await refreshRtcConfig();
   connectSocket();
 })();
