@@ -295,13 +295,13 @@ video {
   grid-template-rows: 1fr;
 }
 
-.chat-bar__messages,
-.chat-bar__composer {
+/* Single wrapper so the 0fr→1fr collapse hides messages AND composer together. */
+.chat-bar__inner {
   overflow: hidden;
   min-height: 0;
 }
 
-.chat-bar[data-open='true'] .chat-bar__messages {
+.chat-bar__messages {
   min-height: 180px;
   max-height: 240px;
   overflow-y: auto;
@@ -311,13 +311,7 @@ video {
   gap: 0.45rem;
 }
 
-.chat-bar[data-open='false'] .chat-bar__messages,
-.chat-bar[data-open='false'] .chat-bar__composer {
-  padding: 0;
-  border: 0;
-}
-
-.chat-bar[data-open='true'] .chat-bar__composer {
+.chat-bar__composer {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 0.5rem;
@@ -487,6 +481,22 @@ video {
   border: 0;
 }
 
+/* Visible keyboard focus for every interactive control. */
+:where(button, a, input, .theme-swatch):focus-visible {
+  outline: 2px solid var(--text, #f8fafc);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 @media (max-width: 768px) {
   .app__subtitle {
     display: none;
@@ -510,7 +520,7 @@ video {
     text-overflow: ellipsis;
   }
 
-  .chat-bar[data-open='true'] .chat-bar__messages {
+  .chat-bar__messages {
     max-height: 200px;
   }
 }

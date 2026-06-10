@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="themes.css" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="themes.css?v=9" />
+    <link rel="stylesheet" href="styles.css?v=9" />
   </head>
   <body>
     <main class="app">
@@ -64,20 +64,22 @@
           <span class="chat-bar__chevron" aria-hidden="true">▾</span>
         </button>
         <div class="chat-bar__panel" id="chatPanel">
-          <div id="messages" class="chat-bar__messages" aria-live="polite"></div>
-          <form id="chatForm" class="chat-bar__composer">
-            <label for="chatInput" class="sr-only">Message</label>
-            <input
-              id="chatInput"
-              name="message"
-              type="text"
-              maxlength="300"
-              placeholder="Type a message…"
-              autocomplete="off"
-              enterkeyhint="send"
-            />
-            <button class="btn btn--send" type="submit">Send</button>
-          </form>
+          <div class="chat-bar__inner">
+            <div id="messages" class="chat-bar__messages" aria-live="polite"></div>
+            <form id="chatForm" class="chat-bar__composer">
+              <label for="chatInput" class="sr-only">Message</label>
+              <input
+                id="chatInput"
+                name="message"
+                type="text"
+                maxlength="300"
+                placeholder="Type a message…"
+                autocomplete="off"
+                enterkeyhint="send"
+              />
+              <button class="btn btn--send" type="submit">Send</button>
+            </form>
+          </div>
         </div>
       </section>
     </main>
@@ -94,8 +96,8 @@
       </div>
     </div>
 
-    <script src="config.js?v=8" defer></script>
-    <script src="themes.js?v=8" defer></script>
-    <script src="app.js?v=8" defer></script>
+    <script src="config.js?v=9" defer></script>
+    <script src="themes.js?v=9" defer></script>
+    <script src="app.js?v=9" defer></script>
   </body>
 </html>
