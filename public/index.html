@@ -11,74 +11,54 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
-        <div class="topbar__brand">
-          <span class="topbar__logo" aria-hidden="true">B</span>
-          <div>
-            <p class="topbar__title">Burgarome</p>
-            <p class="topbar__tagline">Random video chat</p>
-          </div>
-        </div>
-        <div id="status" class="status status--connecting" role="status">
-          <span class="status__dot" aria-hidden="true"></span>
-          <span class="status-text">Connecting</span>
-        </div>
+    <main class="omegle">
+      <header class="omegle__header">
+        <h1 class="omegle__title">Burgarome</h1>
+        <p class="omegle__tagline">Talk to strangers</p>
       </header>
 
-      <section class="layout">
-        <div class="video-stack">
-          <article class="panel panel--main">
-            <div class="panel__head">
-              <span class="panel__label">Stranger</span>
+      <div class="omegle__body">
+        <section class="omegle__left">
+          <div class="omegle__stage">
+            <video id="remoteVideo" class="omegle__remote" autoplay playsinline></video>
+            <div class="omegle__waiting" id="remotePlaceholder">
+              <p>Looking for someone…</p>
             </div>
-            <div class="panel__body">
-              <video id="remoteVideo" autoplay playsinline></video>
-              <div class="panel__empty" id="remotePlaceholder">
-                <p class="panel__empty-title">No stranger yet</p>
-                <p class="panel__empty-copy">You’ll be matched automatically</p>
-              </div>
-            </div>
-          </article>
-
-          <article class="panel panel--pip">
-            <div class="panel__head">
-              <span class="panel__label">You</span>
-            </div>
-            <div class="panel__body">
+            <div class="omegle__pip">
               <video id="localVideo" autoplay muted playsinline></video>
+              <span class="omegle__pip-label">You</span>
             </div>
-          </article>
-        </div>
-
-        <aside class="sidebar">
-          <div class="sidebar__actions">
-            <button id="nextButton" class="button button--primary" type="button">Next stranger</button>
           </div>
 
-          <section class="chat">
-            <div class="chat__head">
-              <h2>Messages</h2>
+          <div class="omegle__bar">
+            <button id="nextButton" class="omegle__next" type="button">Next</button>
+            <div id="status" class="omegle__status status--connecting" role="status">
+              <span class="status__dot" aria-hidden="true"></span>
+              <span class="status-text">Connecting</span>
             </div>
-            <div id="messages" class="chat__feed" aria-live="polite"></div>
-            <form id="chatForm" class="chat__composer">
-              <label for="chatInput" class="sr-only">Message</label>
-              <input
-                id="chatInput"
-                name="message"
-                type="text"
-                maxlength="300"
-                placeholder="Message"
-                autocomplete="off"
-              />
-              <button class="button button--ghost" type="submit" aria-label="Send message">↑</button>
-            </form>
-          </section>
+          </div>
+        </section>
+
+        <aside class="omegle__chat">
+          <div class="omegle__chat-head">Chat</div>
+          <div id="messages" class="omegle__messages" aria-live="polite"></div>
+          <form id="chatForm" class="omegle__composer">
+            <label for="chatInput" class="sr-only">Message</label>
+            <input
+              id="chatInput"
+              name="message"
+              type="text"
+              maxlength="300"
+              placeholder="Type a message"
+              autocomplete="off"
+            />
+            <button type="submit">Send</button>
+          </form>
         </aside>
-      </section>
+      </div>
     </main>
 
-    <script src="config.js?v=6" defer></script>
-    <script src="app.js?v=6" defer></script>
+    <script src="config.js?v=7" defer></script>
+    <script src="app.js?v=7" defer></script>
   </body>
 </html>

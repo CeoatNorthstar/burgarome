@@ -25,6 +25,8 @@ let rtcConfig = { ...RTC_BASE_CONFIG, iceServers: FALLBACK_ICE_SERVERS };
 let isInitiator = false;
 let iceRestartAttempts = 0;
 let iceDisconnectTimer = null;
+let connectionWatchdog = null;
+let hasRemoteVideo = false;
 
 function backendWsUrl() {
   if (BACKEND) {
@@ -60,7 +62,11 @@ let pendingCandidates = [];
 function setStatus(text) {
   const lower = text.toLowerCase();
   let variant = 'connecting';
-  if (lower.includes('active') || lower.includes('connected to a stranger')) {
+  if (
+    lower.includes('active') ||
+    lower.includes('connected to a stranger') ||
+    lower.includes('stranger connected')
+  ) {
     variant = 'active';
   } else if (
     lower.includes('failed') ||
@@ -148,6 +154,29 @@ function clearIceDisconnectTimer() {
   }
 }
 
+function clearConnectionWatchdog() {
+  if (connectionWatchdog) {
+    clearTimeout(connectionWatchdog);
+    connectionWatchdog = null;
+  }
+}
+
+function startConnectionWatchdog() {
+  clearConnectionWatchdog();
+  hasRemoteVideo = false;
+  connectionWatchdog = setTimeout(() => {
+    if (!connectedToPeer || hasRemoteVideo) {
+      return;
+    }
+    setStatus('Still connecting video…');
+    if (isInitiator) {
+      void sendOffer(true);
+    } else {
+      send({ type: 'signal', renegotiate: true });
+    }
+  }, 5000);
+}
+
 function attachRemoteTrack(event) {
   const track = event.track;
   if (!remoteStream.getTracks().includes(track)) {
@@ -159,6 +188,20 @@ function attachRemoteTrack(event) {
   }
   showRemotePlaceholder(false);
 
+  if (track.kind === 'video') {
+    hasRemoteVideo = true;
+    clearConnectionWatchdog();
+    setStatus('Stranger connected');
+  }
+
+  track.onunmute = () => {
+    if (track.kind === 'video') {
+      hasRemoteVideo = true;
+      setStatus('Stranger connected');
+      showRemotePlaceholder(false);
+    }
+  };
+
   void remoteVideo.play().catch(() => {
     remoteVideo.muted = true;
     void remoteVideo.play().finally(() => {
@@ -168,18 +211,9 @@ function attachRemoteTrack(event) {
 }
 
 function addLocalTracks(pc) {
-  const kinds = new Set(localStream.getTracks().map((track) => track.kind));
-
   localStream.getTracks().forEach((track) => {
-    pc.addTransceiver(track, { direction: 'sendrecv', streams: [localStream] });
+    pc.addTrack(track, localStream);
   });
-
-  if (!kinds.has('video')) {
-    pc.addTransceiver('video', { direction: 'recvonly' });
-  }
-  if (!kinds.has('audio')) {
-    pc.addTransceiver('audio', { direction: 'recvonly' });
-  }
 }
 
 function resetPeerConnection() {
@@ -255,23 +289,50 @@ function sendLocalDescription() {
   });
 }
 
-async function tryIceRestart() {
-  if (!peerConnection || !connectedToPeer || !isInitiator || iceRestartAttempts >= 2) {
-    if (connectedToPeer && iceRestartAttempts >= 2) {
-      setStatus('Connection lost. Try Next Stranger.');
-      addMessage('Video link dropped. Press Next to reconnect.', 'system');
-    }
+async function sendOffer(iceRestart = false) {
+  if (!peerConnection || !connectedToPeer || !isInitiator) {
     return;
   }
+  if (iceRestart) {
+    iceRestartAttempts += 1;
+    if (iceRestartAttempts > 3) {
+      setStatus('Connection lost. Try Next.');
+      addMessage('Video link dropped. Press Next to reconnect.', 'system');
+      return;
+    }
+  }
 
-  iceRestartAttempts += 1;
   try {
-    const offer = await peerConnection.createOffer({ iceRestart: true });
+    const offer = await peerConnection.createOffer(iceRestart ? { iceRestart: true } : undefined);
     await peerConnection.setLocalDescription(offer);
     sendLocalDescription();
-    setStatus('Reconnecting video…');
+    if (iceRestart) {
+      setStatus('Reconnecting video…');
+    }
+    void tuneVideoSender(peerConnection);
   } catch (error) {
     console.error(error);
+  }
+}
+
+async function tryIceRestart() {
+  await sendOffer(true);
+}
+
+async function applyRemoteDescription(description) {
+  const remote = new RTCSessionDescription(description);
+  const needsRollback =
+    remote.type === 'offer' &&
+    (peerConnection.signalingState === 'have-local-offer' ||
+      peerConnection.signalingState === 'have-remote-offer');
+
+  if (needsRollback) {
+    await Promise.all([
+      peerConnection.setLocalDescription({ type: 'rollback' }),
+      peerConnection.setRemoteDescription(remote),
+    ]);
+  } else {
+    await peerConnection.setRemoteDescription(remote);
   }
 }
 
@@ -284,19 +345,16 @@ async function handleMatch(initiator) {
   addMessage('You are now connected.', 'system');
 
   resetPeerConnection();
-  void refreshRtcConfig();
+  startConnectionWatchdog();
 
   if (!initiator) {
     return;
   }
 
   try {
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    sendLocalDescription();
-    void tuneVideoSender(peerConnection);
+    await sendOffer(false);
   } catch (error) {
-    setStatus('Could not start video. Try Next Stranger.');
+    setStatus('Could not start video. Try Next.');
     addMessage('Failed to create a video offer.', 'system');
     console.error(error);
   }
@@ -325,8 +383,15 @@ async function handleSignal(payload) {
   }
 
   try {
+    if (payload.renegotiate) {
+      if (isInitiator) {
+        await sendOffer(true);
+      }
+      return;
+    }
+
     if (payload.description) {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(payload.description));
+      await applyRemoteDescription(payload.description);
       await flushPendingCandidates();
 
       if (payload.description.type === 'offer') {
@@ -334,6 +399,7 @@ async function handleSignal(payload) {
         await peerConnection.setLocalDescription(answer);
         sendLocalDescription();
         void tuneVideoSender(peerConnection);
+        startConnectionWatchdog();
       }
     } else if (payload.candidate) {
       if (!peerConnection.remoteDescription) {
@@ -343,7 +409,7 @@ async function handleSignal(payload) {
       await addIceCandidateSafe(payload.candidate);
     }
   } catch (error) {
-    setStatus('Signaling error. Try Next Stranger.');
+    setStatus('Signaling error. Try Next.');
     addMessage('Video negotiation failed. Please try again.', 'system');
     console.error(error);
   }
@@ -353,7 +419,9 @@ function disconnectPeer(notify = false) {
   connectedToPeer = false;
   isInitiator = false;
   iceRestartAttempts = 0;
+  hasRemoteVideo = false;
   clearIceDisconnectTimer();
+  clearConnectionWatchdog();
   remoteVideo.srcObject = null;
   remoteStream = null;
   showRemotePlaceholder(true);
@@ -395,7 +463,7 @@ function connectSocket() {
   socket = new WebSocket(backendWsUrl());
 
   socket.addEventListener('open', () => {
-    setStatus('Looking for a stranger...');
+    setStatus('Looking for a stranger…');
     send({ type: 'ready' });
   });
 
