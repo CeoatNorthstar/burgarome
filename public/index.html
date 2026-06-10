@@ -1,64 +1,101 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="midnight">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Burgarome</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' fill='white'>B</text></svg>" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="themes.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="omegle">
-      <header class="omegle__header">
-        <h1 class="omegle__title">Burgarome</h1>
-        <p class="omegle__tagline">Talk to strangers</p>
+    <main class="app">
+      <header class="app__header">
+        <div class="app__brand">
+          <span class="app__logo" aria-hidden="true">B</span>
+          <div>
+            <h1 class="app__title">Burgarome</h1>
+            <p class="app__subtitle">Professional random video chat</p>
+          </div>
+        </div>
+        <div class="app__header-actions">
+          <div id="status" class="status status--connecting" role="status">
+            <span class="status__dot" aria-hidden="true"></span>
+            <span class="status-text">Connecting</span>
+          </div>
+          <button id="settingsButton" class="icon-btn" type="button" aria-label="Open settings">⚙</button>
+        </div>
       </header>
 
-      <div class="omegle__body">
-        <section class="omegle__left">
-          <div class="omegle__stage">
-            <video id="remoteVideo" class="omegle__remote" autoplay playsinline></video>
-            <div class="omegle__waiting" id="remotePlaceholder">
-              <p>Looking for someone…</p>
-            </div>
-            <div class="omegle__pip">
-              <video id="localVideo" autoplay muted playsinline></video>
-              <span class="omegle__pip-label">You</span>
+      <section class="video-grid" aria-label="Video feeds">
+        <article class="video-card">
+          <header class="video-card__head">
+            <span>You</span>
+          </header>
+          <div class="video-card__body">
+            <video id="localVideo" autoplay muted playsinline></video>
+          </div>
+        </article>
+
+        <article class="video-card">
+          <header class="video-card__head">
+            <span>Stranger</span>
+          </header>
+          <div class="video-card__body">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="video-card__empty" id="remotePlaceholder">
+              <p>Waiting for stranger…</p>
             </div>
           </div>
+        </article>
+      </section>
 
-          <div class="omegle__bar">
-            <button id="nextButton" class="omegle__next" type="button">Next</button>
-            <div id="status" class="omegle__status status--connecting" role="status">
-              <span class="status__dot" aria-hidden="true"></span>
-              <span class="status-text">Connecting</span>
-            </div>
-          </div>
-        </section>
+      <div class="app__actions">
+        <button id="nextButton" class="btn btn--primary" type="button">Next stranger</button>
+      </div>
 
-        <aside class="omegle__chat">
-          <div class="omegle__chat-head">Chat</div>
-          <div id="messages" class="omegle__messages" aria-live="polite"></div>
-          <form id="chatForm" class="omegle__composer">
+      <section class="chat-bar" id="chatBar" data-open="false">
+        <button id="chatToggle" class="chat-bar__toggle" type="button" aria-expanded="false" aria-controls="chatPanel">
+          <span class="chat-bar__toggle-label">Chat</span>
+          <span class="chat-bar__chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="chat-bar__panel" id="chatPanel">
+          <div id="messages" class="chat-bar__messages" aria-live="polite"></div>
+          <form id="chatForm" class="chat-bar__composer">
             <label for="chatInput" class="sr-only">Message</label>
             <input
               id="chatInput"
               name="message"
               type="text"
               maxlength="300"
-              placeholder="Type a message"
+              placeholder="Type a message…"
               autocomplete="off"
+              enterkeyhint="send"
             />
-            <button type="submit">Send</button>
+            <button class="btn btn--send" type="submit">Send</button>
           </form>
-        </aside>
-      </div>
+        </div>
+      </section>
     </main>
 
-    <script src="config.js?v=7" defer></script>
-    <script src="app.js?v=7" defer></script>
+    <div id="settingsModal" class="settings" hidden>
+      <button class="settings__backdrop" type="button" aria-label="Close settings"></button>
+      <div class="settings__panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <header class="settings__head">
+          <h2 id="settingsTitle">Appearance</h2>
+          <button id="closeSettings" class="icon-btn" type="button" aria-label="Close settings">✕</button>
+        </header>
+        <p class="settings__hint">Choose from 40 gradient themes. Saved on this device.</p>
+        <div id="themeGrid" class="settings__grid"></div>
+      </div>
+    </div>
+
+    <script src="config.js?v=8" defer></script>
+    <script src="themes.js?v=8" defer></script>
+    <script src="app.js?v=8" defer></script>
   </body>
 </html>

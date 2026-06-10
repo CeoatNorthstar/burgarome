@@ -540,7 +540,64 @@ chatForm.addEventListener('submit', (event) => {
   chatInput.value = '';
 });
 
+function initUi() {
+  const chatBar = document.getElementById('chatBar');
+  const chatToggle = document.getElementById('chatToggle');
+  const chatPanel = document.getElementById('chatPanel');
+  const settingsButton = document.getElementById('settingsButton');
+  const settingsModal = document.getElementById('settingsModal');
+  const closeSettings = document.getElementById('closeSettings');
+  const settingsBackdrop = settingsModal?.querySelector('.settings__backdrop');
+
+  function setChatOpen(open) {
+    if (!chatBar || !chatToggle) {
+      return;
+    }
+    chatBar.dataset.open = open ? 'true' : 'false';
+    chatToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      chatInput?.focus();
+    }
+  }
+
+  chatToggle?.addEventListener('click', () => {
+    const open = chatBar?.dataset.open !== 'true';
+    setChatOpen(open);
+  });
+
+  function openSettings() {
+    if (!settingsModal) {
+      return;
+    }
+    settingsModal.hidden = false;
+    initThemes();
+  }
+
+  function closeSettingsPanel() {
+    if (!settingsModal) {
+      return;
+    }
+    settingsModal.hidden = true;
+  }
+
+  settingsButton?.addEventListener('click', openSettings);
+  closeSettings?.addEventListener('click', closeSettingsPanel);
+  settingsBackdrop?.addEventListener('click', closeSettingsPanel);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && settingsModal && !settingsModal.hidden) {
+      closeSettingsPanel();
+    }
+  });
+
+  if (chatPanel) {
+    chatPanel.id = 'chatPanel';
+  }
+}
+
 (async () => {
+  initThemes();
+  initUi();
   await Promise.all([initMedia(), refreshRtcConfig()]);
   connectSocket();
   setInterval(() => {
